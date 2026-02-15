@@ -374,6 +374,7 @@ function PlayCore({ tracks }: PlayCoreProps) {
                 width={selectedTrack.width}
                 height={selectedTrack.height}
                 tiles={selectedTrack.tiles}
+                tileVariant="road"
                 robots={programmingRobots}
               />
             </div>

@@ -124,6 +124,7 @@ export function PlaybackView({ track, players, result, onFinished }: PlaybackVie
           width={track.width}
           height={track.height}
           tiles={track.tiles}
+          tileVariant="road"
           showRobotDirection={false}
           animateRobots
           robotTransitionMs={Math.max(stepMs - 40, 300)}

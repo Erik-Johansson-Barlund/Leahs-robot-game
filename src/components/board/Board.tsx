@@ -24,6 +24,7 @@ interface BoardProps {
   showRobotDirection?: boolean;
   animateRobots?: boolean;
   robotTransitionMs?: number;
+  tileVariant?: "classic" | "road";
 }
 
 export function Board({
@@ -35,7 +36,8 @@ export function Board({
   onTileClick,
   showRobotDirection = true,
   animateRobots = false,
-  robotTransitionMs = 450
+  robotTransitionMs = 450,
+  tileVariant = "classic"
 }: BoardProps) {
   const highlights = new Set(highlightCells);
   const boardRef = useRef<HTMLDivElement | null>(null);
@@ -131,11 +133,14 @@ export function Board({
             ref={(node) => {
               cellRefs.current[key] = node;
             }}
-            className="relative aspect-square rounded-2xl border border-white/70 bg-white/50 p-0.5"
+            className={`relative aspect-square rounded-2xl border border-white/70 bg-white/50 ${
+              tileVariant === "road" ? "p-0" : "p-0.5"
+            }`}
           >
             {tile ? (
               <Tile
                 tile={tile}
+                variant={tileVariant}
                 highlighted={highlights.has(key)}
                 onClick={onTileClick ? () => onTileClick(key, tile) : undefined}
               />
@@ -144,6 +149,13 @@ export function Board({
                 className={`h-full w-full rounded-xl ${highlights.has(key) ? "bg-red-200" : "bg-white/60"}`}
               />
             )}
+            {tileVariant === "road" && tile?.type === "goal" ? (
+              <span className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center overflow-visible">
+                <span className="text-7xl leading-none animate-bob filter brightness-125 saturate-160 drop-shadow-[0_0_14px_rgba(250,204,21,0.95)]">
+                  👑
+                </span>
+              </span>
+            ) : null}
             {!animatedRobot && robot ? (
               <RobotToken
                 name={robot.name}
