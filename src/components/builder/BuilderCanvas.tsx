@@ -1,8 +1,10 @@
 import {
+  pointerWithin,
   DndContext,
   DragCancelEvent,
   DragEndEvent,
   DragOverlay,
+  DragOverEvent,
   DragStartEvent,
   PointerSensor,
   useDraggable,
@@ -10,7 +12,9 @@ import {
   useSensor,
   useSensors
 } from "@dnd-kit/core";
+import { snapCenterToCursor } from "@dnd-kit/modifiers";
 import { ReactNode, useState } from "react";
+import { useI18n } from "@/i18n/I18nContext";
 import { Tile } from "@/components/board/Tile";
 import { coordToKey } from "@/engine/tileConnectivity";
 import { Tile as TileModel, TileMap, TileType } from "@/engine/types";
@@ -31,20 +35,31 @@ function GridDropCell({
   id,
   hasTile,
   highlighted,
+  emphasis,
   children
 }: {
   id: string;
   hasTile: boolean;
   highlighted: boolean;
+  emphasis: "normal" | "target" | "adjacent";
   children: ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
 
+  const emphasisClass =
+    emphasis === "target"
+      ? "z-20 scale-[1.14] border-blue-600 bg-blue-200 shadow-[0_8px_20px_rgba(37,99,235,0.25)]"
+      : emphasis === "adjacent"
+        ? "scale-[0.93] brightness-95 saturate-95"
+        : "";
+
   return (
     <div
       ref={setNodeRef}
-      className={`relative aspect-square rounded-2xl border p-0.5 ${
+      className={`relative aspect-square rounded-2xl border p-0 transform-gpu transition-transform duration-150 ${
         isOver ? "border-blue-500 bg-blue-200" : "border-white/80 bg-white/50"
+      } ${emphasisClass} ${
+        isOver && emphasis === "normal" ? "z-20 scale-[1.08]" : ""
       } ${highlighted ? "ring-4 ring-amber-400" : ""}`}
     >
       {!hasTile ? <div className="h-full w-full rounded-xl bg-white/60" /> : null}
@@ -93,6 +108,7 @@ export function BuilderCanvas({
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
   const highlightSet = new Set(highlights);
   const [dragPreviewTile, setDragPreviewTile] = useState<TileModel | null>(null);
+  const [hoveredCellKey, setHoveredCellKey] = useState<string | null>(null);
 
   function onDragStart(event: DragStartEvent) {
     const data = event.active.data.current as
@@ -102,6 +118,7 @@ export function BuilderCanvas({
 
     if (!data) {
       setDragPreviewTile(null);
+      setHoveredCellKey(null);
       return;
     }
 
@@ -117,6 +134,16 @@ export function BuilderCanvas({
 
   function onDragCancel(_event: DragCancelEvent) {
     setDragPreviewTile(null);
+    setHoveredCellKey(null);
+  }
+
+  function onDragOver(event: DragOverEvent) {
+    const overId = event.over?.id?.toString();
+    if (overId?.startsWith("cell-")) {
+      setHoveredCellKey(overId.replace("cell-", ""));
+      return;
+    }
+    setHoveredCellKey(null);
   }
 
   function onDragEnd(event: DragEndEvent) {
@@ -127,6 +154,7 @@ export function BuilderCanvas({
 
     const overId = event.over?.id?.toString();
     setDragPreviewTile(null);
+    setHoveredCellKey(null);
 
     if (!activeData || !overId) {
       return;
@@ -162,16 +190,19 @@ export function BuilderCanvas({
 
   return (
     <DndContext
+      autoScroll={false}
+      collisionDetection={pointerWithin}
       sensors={sensors}
       onDragStart={onDragStart}
+      onDragOver={onDragOver}
       onDragCancel={onDragCancel}
       onDragEnd={onDragEnd}
     >
-      <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[208px_minmax(0,1fr)]">
         <TilePalette />
-        <div>
+        <div className="w-full">
           <div
-            className="grid gap-1 rounded-3xl bg-sky-200/70 p-3 shadow-xl"
+            className="mx-auto grid w-full max-w-[740px] gap-0.5 rounded-3xl bg-sky-200/70 p-3 shadow-xl"
             style={{
               gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))`,
               gridTemplateRows: `repeat(${height}, minmax(0, 1fr))`
@@ -182,6 +213,18 @@ export function BuilderCanvas({
               const y = Math.floor(idx / width);
               const key = coordToKey({ x, y });
               const tile = tiles[key];
+              let emphasis: "normal" | "target" | "adjacent" = "normal";
+
+              if (dragPreviewTile && hoveredCellKey) {
+                const [hoverX, hoverY] = hoveredCellKey.split(",").map(Number);
+                const distance = Math.abs(hoverX - x) + Math.abs(hoverY - y);
+
+                if (distance === 0) {
+                  emphasis = "target";
+                } else if (distance === 1) {
+                  emphasis = "adjacent";
+                }
+              }
 
               return (
                 <GridDropCell
@@ -189,10 +232,16 @@ export function BuilderCanvas({
                   id={`cell-${key}`}
                   hasTile={Boolean(tile)}
                   highlighted={highlightSet.has(key)}
+                  emphasis={emphasis}
                 >
                   {tile ? (
                     <DraggablePlacedTile tileKey={key}>
-                      <Tile tile={tile} highlighted={highlightSet.has(key)} onClick={() => onRotate(key)} />
+                      <Tile
+                        tile={tile}
+                        edgeToEdge
+                        highlighted={highlightSet.has(key)}
+                        onClick={() => onRotate(key)}
+                      />
                     </DraggablePlacedTile>
                   ) : null}
                 </GridDropCell>
@@ -203,10 +252,10 @@ export function BuilderCanvas({
           <TrashZone />
         </div>
       </div>
-      <DragOverlay dropAnimation={null}>
+      <DragOverlay dropAnimation={null} modifiers={[snapCenterToCursor]} adjustScale={false}>
         {dragPreviewTile ? (
           <div className="h-16 w-16">
-            <Tile tile={dragPreviewTile} />
+            <Tile tile={dragPreviewTile} edgeToEdge />
           </div>
         ) : null}
       </DragOverlay>
@@ -215,18 +264,19 @@ export function BuilderCanvas({
 }
 
 function TrashZone() {
+  const { t } = useI18n();
   const { setNodeRef, isOver } = useDroppable({ id: "trash-zone" });
 
   return (
     <div
       ref={setNodeRef}
-      className={`mt-4 rounded-3xl border-4 border-dashed p-5 text-center text-lg font-black transition ${
+      className={`mx-auto mt-3 w-full max-w-[740px] rounded-3xl border-4 border-dashed p-3 text-center text-base font-black transition ${
         isOver
           ? "border-rose-500 bg-rose-200 text-rose-800"
           : "border-rose-300 bg-rose-100/80 text-rose-700"
       }`}
     >
-      Drop Here To Remove Tile
+      {t("builder.trash")}
     </div>
   );
 }

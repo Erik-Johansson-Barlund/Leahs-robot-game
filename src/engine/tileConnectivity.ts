@@ -31,7 +31,7 @@ const baseConnectors: Record<TileType, Direction[]> = {
   tee: ["N", "E", "W"],
   cross: ["N", "E", "S", "W"],
   start: ["N"],
-  goal: ["N"]
+  goal: ["N", "E", "S", "W"]
 };
 
 export function coordToKey(coord: Coord): string {
@@ -134,6 +134,9 @@ export function listOpenConnectors(
 ): Array<{ direction: Direction; neighborKey: string | null }> {
   const tile = tiles[key];
   if (!tile) {
+    return [];
+  }
+  if (tile.type === "goal") {
     return [];
   }
 

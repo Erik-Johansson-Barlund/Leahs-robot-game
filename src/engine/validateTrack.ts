@@ -47,10 +47,10 @@ export function validateTrack(
   const starts = positioned.filter((entry) => entry.tile.type === "start");
   const goals = positioned.filter((entry) => entry.tile.type === "goal");
 
-  if (starts.length !== 4) {
+  if (starts.length < 1 || starts.length > 4) {
     errors.push({
       code: "wrong_start_count",
-      message: `We need exactly 4 starting pads, but found ${starts.length}.`,
+      message: `We need between 1 and 4 starting pads, but found ${starts.length}.`,
       cells: starts.map((start) => start.key)
     });
   }

@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Command } from "@/engine/types";
+import { useI18n } from "@/i18n/I18nContext";
 import { CommandPalette } from "./CommandPalette";
 
 interface ProgramBuilderProps {
@@ -16,19 +17,32 @@ const commandIcon: Record<Command, string> = {
 };
 
 export function ProgramBuilder({ playerId, initialCommands = [], onDone }: ProgramBuilderProps) {
+  const { t } = useI18n();
   const [commands, setCommands] = useState<Command[]>([]);
+  const stepsScrollerRef = useRef<HTMLDivElement | null>(null);
+  const previousCommandCountRef = useRef(0);
 
   useEffect(() => {
     setCommands(initialCommands);
   }, [playerId, initialCommands]);
 
-  function addCommand(command: Command) {
-    setCommands((prev) => {
-      if (prev.length >= 30) {
-        return prev;
-      }
-      return [...prev, command];
+  useEffect(() => {
+    const scroller = stepsScrollerRef.current;
+    if (!scroller) {
+      previousCommandCountRef.current = commands.length;
+      return;
+    }
+
+    const grew = commands.length > previousCommandCountRef.current;
+    scroller.scrollTo({
+      left: scroller.scrollWidth,
+      behavior: grew ? "smooth" : "auto"
     });
+    previousCommandCountRef.current = commands.length;
+  }, [commands.length]);
+
+  function addCommand(command: Command) {
+    setCommands((prev) => [...prev, command]);
   }
 
   function removeAt(index: number) {
@@ -37,11 +51,13 @@ export function ProgramBuilder({ playerId, initialCommands = [], onDone }: Progr
 
   return (
     <div className="space-y-4">
-      <CommandPalette onPick={addCommand} disabled={commands.length >= 30} />
+      <CommandPalette onPick={addCommand} />
 
       <div className="rounded-3xl bg-sky-100 p-4 shadow-lg">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="font-display text-2xl font-black text-sky-900">Program Steps ({commands.length}/30)</h3>
+          <h3 className="font-display text-2xl font-black text-sky-900">
+            {t("program.steps", { count: commands.length })}
+          </h3>
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -49,7 +65,7 @@ export function ProgramBuilder({ playerId, initialCommands = [], onDone }: Progr
               disabled={commands.length === 0}
               className="rounded-xl bg-white px-3 py-1 text-sm font-black text-slate-700 shadow disabled:opacity-40"
             >
-              Undo
+              {t("program.undo")}
             </button>
             <button
               type="button"
@@ -57,24 +73,22 @@ export function ProgramBuilder({ playerId, initialCommands = [], onDone }: Progr
               disabled={commands.length === 0}
               className="rounded-xl bg-white px-3 py-1 text-sm font-black text-slate-700 shadow disabled:opacity-40"
             >
-              Clear
+              {t("program.clear")}
             </button>
           </div>
         </div>
 
-        <div className="mt-3 overflow-x-auto pb-2">
+        <div ref={stepsScrollerRef} className="mt-3 overflow-x-auto pb-2">
           <div className="flex min-h-20 items-center gap-2">
             {commands.length === 0 ? (
-              <p className="rounded-2xl bg-white px-4 py-3 text-sm font-bold text-slate-500">
-                Click command buttons to add steps.
-              </p>
+              <p className="rounded-2xl bg-white px-4 py-3 text-sm font-bold text-slate-500">{t("program.empty")}</p>
             ) : (
               commands.map((command, index) => (
                 <button
                   key={`${command}-${index}`}
                   type="button"
                   onClick={() => removeAt(index)}
-                  title="Click to remove this step"
+                  title={t("program.removeStepTitle")}
                   className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white text-3xl font-black text-sky-800 shadow transition hover:-translate-y-0.5"
                 >
                   {commandIcon[command]}
@@ -87,7 +101,7 @@ export function ProgramBuilder({ playerId, initialCommands = [], onDone }: Progr
           </div>
         </div>
 
-        <p className="text-xs font-bold text-slate-600">Tip: click any step icon to remove it.</p>
+        <p className="text-xs font-bold text-slate-600">{t("program.tip")}</p>
       </div>
 
       <button
@@ -95,7 +109,7 @@ export function ProgramBuilder({ playerId, initialCommands = [], onDone }: Progr
         onClick={() => onDone(commands)}
         className="w-full rounded-2xl bg-sky-600 px-4 py-3 text-2xl font-black text-white shadow-lg transition hover:scale-[1.01]"
       >
-        Done
+        {t("program.done")}
       </button>
     </div>
   );

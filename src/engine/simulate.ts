@@ -97,7 +97,7 @@ export function simulate(
       starts.length > 0 ? (index + (startOffset % starts.length)) % starts.length : 0;
     const start = starts[shiftedStartIndex] ?? starts[0] ?? { key: "0,0", dir: "N" as Direction };
     const startCoord = keyToCoord(start.key);
-    const commands = (programs[player.id] ?? []).slice(0, 30);
+    const commands = programs[player.id] ?? [];
 
     let position = startCoord;
     let direction = start.dir;

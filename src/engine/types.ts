@@ -28,6 +28,8 @@ export interface Player {
   id: string;
   name: string;
   color: string;
+  robotId?: string;
+  robotImage?: string;
 }
 
 export type Command = "forward" | "backward" | "turnLeft" | "turnRight";

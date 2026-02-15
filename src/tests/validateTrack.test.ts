@@ -23,6 +23,29 @@ describe("validateTrack", () => {
     expect(result.errors).toHaveLength(0);
   });
 
+  it("accepts a valid track with one start tile", () => {
+    const oneStart: TileMap = {
+      "1,1": { type: "start", rot: 90 },
+      "2,1": { type: "straight", rot: 0 },
+      "3,1": { type: "goal", rot: 0 }
+    };
+
+    const result = validateTrack(oneStart, 12, 12);
+    expect(result.isValid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("allows entering goal from any direction", () => {
+    const fromSouth: TileMap = {
+      "2,4": { type: "start", rot: 0 },
+      "2,3": { type: "straight", rot: 90 },
+      "2,2": { type: "goal", rot: 180 }
+    };
+
+    const result = validateTrack(fromSouth, 12, 12);
+    expect(result.isValid).toBe(true);
+  });
+
   it("detects dangling connectors", () => {
     const broken: TileMap = {
       ...validTrackTiles,

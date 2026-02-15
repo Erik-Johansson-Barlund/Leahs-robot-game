@@ -14,4 +14,9 @@ describe("tileConnectivity", () => {
     expect(getConnectors({ type: "straight", rot: 90 })).toEqual(["S", "N"]);
     expect(getConnectors({ type: "tee", rot: 180 })).toEqual(["S", "W", "E"]);
   });
+
+  it("lets goal accept all directions", () => {
+    expect(getConnectors({ type: "goal", rot: 0 }).sort()).toEqual(["E", "N", "S", "W"]);
+    expect(getConnectors({ type: "goal", rot: 90 }).sort()).toEqual(["E", "N", "S", "W"]);
+  });
 });

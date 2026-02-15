@@ -10,6 +10,7 @@ import { useGameSession } from "@/context/GameSessionContext";
 import { coordToKey, getConnectors, listPositionedTiles } from "@/engine/tileConnectivity";
 import { simulate } from "@/engine/simulate";
 import { Command, Player, PlayerRun, SimulationResult, Track } from "@/engine/types";
+import { useI18n } from "@/i18n/I18nContext";
 import {
   api,
   getLocalStarterTracks,
@@ -24,12 +25,32 @@ interface PlayCoreProps {
   tracks: TrackDoc[];
 }
 
+function displayTrackName(name: string, t: ReturnType<typeof useI18n>["t"]) {
+  const mapping: Record<string, Parameters<typeof t>[0]> = {
+    "Simple Loop": "track.simpleLoop",
+    "Zig-Zag Path": "track.zigzag",
+    "Branching Tee Path": "track.branching",
+    "Central Cross Map": "track.cross"
+  };
+
+  const key = mapping[name];
+  return key ? t(key) : name;
+}
+
 function getProgrammingRobots(
   track: Track,
   players: Player[],
   currentPlayerId: string,
-  startOffset: number
-): Array<{ x: number; y: number; name: string; color: string; dir: "N" | "E" | "S" | "W" }> {
+  startOffset: number,
+  turnSuffix: string
+): Array<{
+  x: number;
+  y: number;
+  name: string;
+  color: string;
+  dir: "N" | "E" | "S" | "W";
+  robotImage?: string;
+}> {
   const starts = listPositionedTiles(track.tiles).filter((entry) => entry.tile.type === "start");
 
   return players.flatMap((player, index) => {
@@ -47,7 +68,8 @@ function getProgrammingRobots(
         y: start.y,
         dir,
         color: player.color,
-        name: player.id === currentPlayerId ? `${player.name} (Turn)` : player.name
+        robotImage: player.robotImage,
+        name: player.id === currentPlayerId ? `${player.name} ${turnSuffix}` : player.name
       }
     ];
   });
@@ -62,25 +84,6 @@ function didReachGoal(run: PlayerRun, track: Track): boolean {
   });
 }
 
-function statusLabel(run: PlayerRun, track: Track) {
-  return didReachGoal(run, track) ? "Succeeded" : "Failed";
-}
-
-function statusDetail(run: PlayerRun, track: Track) {
-  if (didReachGoal(run, track)) {
-    return "Reached the goal";
-  }
-
-  if (run.endedBecause === "blocked") {
-    return "hit a wall";
-  }
-
-  if (run.endedBecause === "commandsExhausted") {
-    return "ran out of gas";
-  }
-  return "ran out of gas";
-}
-
 function TrackSelector({
   tracks,
   selectedId,
@@ -92,10 +95,12 @@ function TrackSelector({
   onSelect: (track: TrackDoc) => void;
   onContinue: () => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <section className="space-y-4">
       <div className="rounded-3xl bg-sky-100/80 p-5 shadow-xl">
-        <h1 className="font-display text-4xl font-black text-sky-900">Step 1: Select Track</h1>
+        <h1 className="font-display text-4xl font-black text-sky-900">{t("play.selectTrack")}</h1>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
@@ -111,13 +116,13 @@ function TrackSelector({
                 selected ? "border-sky-600 bg-sky-200" : "border-white bg-white/85"
               }`}
             >
-              <p className="font-display text-3xl font-black text-slate-800">{track.name}</p>
+              <p className="font-display text-3xl font-black text-slate-800">{displayTrackName(track.name, t)}</p>
               <p className="text-sm font-bold text-slate-600">
                 {track.width}×{track.height} • {Object.keys(track.tiles).length} tiles
               </p>
               {track.isStarter ? (
                 <span className="mt-2 inline-block rounded-xl bg-emerald-200 px-2 py-1 text-xs font-black text-emerald-900">
-                  Starter
+                  {t("play.starter")}
                 </span>
               ) : null}
             </button>
@@ -131,7 +136,7 @@ function TrackSelector({
         disabled={!selectedId}
         className="w-full rounded-2xl bg-sky-600 px-4 py-3 text-2xl font-black text-white shadow-lg transition enabled:hover:scale-[1.01] disabled:cursor-not-allowed disabled:bg-slate-300"
       >
-        Continue
+        {t("play.continue")}
       </button>
     </section>
   );
@@ -150,13 +155,13 @@ function ResultsSummary({
   onPlayAgain: () => void;
   onBackHome: () => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <div className="space-y-4">
       <div className="rounded-3xl bg-emerald-100/90 p-5 shadow-xl">
-        <h2 className="font-display text-4xl font-black text-emerald-900">Round Results</h2>
-        <p className="mt-1 text-lg font-bold text-emerald-800">
-          Same players and same map are ready for another round.
-        </p>
+        <h2 className="font-display text-4xl font-black text-emerald-900">{t("play.roundResults")}</h2>
+        <p className="mt-1 text-lg font-bold text-emerald-800">{t("play.roundResultsHelp")}</p>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
@@ -175,6 +180,13 @@ function ResultsSummary({
               }`}
             >
               <div className="relative inline-flex items-center gap-2">
+                {player.robotImage ? (
+                  <img
+                    src={player.robotImage}
+                    alt={player.name}
+                    className="h-10 w-10 rounded-xl bg-white object-contain"
+                  />
+                ) : null}
                 <p className="text-2xl font-black" style={{ color: player.color }}>
                   {player.name}
                 </p>
@@ -185,9 +197,15 @@ function ResultsSummary({
                 ) : null}
               </div>
               <p className={`text-xl font-black ${succeeded ? "text-emerald-700" : "text-rose-700"}`}>
-                {statusLabel(run, track)}
+                {succeeded ? t("play.succeeded") : t("play.failed")}
               </p>
-              <p className="text-sm font-bold text-slate-600">{statusDetail(run, track)}</p>
+              <p className="text-sm font-bold text-slate-600">
+                {succeeded
+                  ? t("play.detail.goal")
+                  : run.endedBecause === "blocked"
+                    ? t("play.detail.wall")
+                    : t("play.detail.gas")}
+              </p>
             </div>
           );
         })}
@@ -199,14 +217,14 @@ function ResultsSummary({
           onClick={onPlayAgain}
           className="rounded-2xl bg-emerald-600 px-4 py-3 text-2xl font-black text-white shadow-lg transition hover:scale-[1.01]"
         >
-          Play Again
+          {t("play.playAgain")}
         </button>
         <button
           type="button"
           onClick={onBackHome}
           className="rounded-2xl bg-white px-4 py-3 text-2xl font-black text-slate-700 shadow-lg transition hover:scale-[1.01]"
         >
-          Back To Home
+          {t("play.backHome")}
         </button>
       </div>
     </div>
@@ -214,6 +232,7 @@ function ResultsSummary({
 }
 
 function PlayCore({ tracks }: PlayCoreProps) {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const {
     selectedTrack,
@@ -249,9 +268,9 @@ function PlayCore({ tracks }: PlayCoreProps) {
   const programmingRobots = useMemo(
     () =>
       selectedTrack && currentPlayer
-        ? getProgrammingRobots(selectedTrack, players, currentPlayer.id, startOffset)
+        ? getProgrammingRobots(selectedTrack, players, currentPlayer.id, startOffset, t("play.turnSuffix"))
         : [],
-    [selectedTrack, players, currentPlayer, startOffset]
+    [selectedTrack, players, currentPlayer, startOffset, t]
   );
 
   function onSelectTrack(track: TrackDoc) {
@@ -341,16 +360,15 @@ function PlayCore({ tracks }: PlayCoreProps) {
           <TurnPrompt
             name={currentPlayer.name}
             color={currentPlayer.color}
+            robotImage={currentPlayer.robotImage}
             turn={turnIndex + 1}
             total={players.length}
           />
           <div className="grid gap-4 xl:grid-cols-[1fr_440px]">
             <div className="space-y-2">
               <div className="rounded-3xl bg-white/80 p-4 shadow-lg">
-                <h3 className="font-display text-2xl font-black text-slate-800">Track Map</h3>
-                <p className="text-sm font-bold text-slate-600">
-                  Plan steps while looking at the track.
-                </p>
+                <h3 className="font-display text-2xl font-black text-slate-800">{t("play.trackMap")}</h3>
+                <p className="text-sm font-bold text-slate-600">{t("play.trackMapHelp")}</p>
               </div>
               <Board
                 width={selectedTrack.width}
@@ -392,6 +410,7 @@ function PlayCore({ tracks }: PlayCoreProps) {
 }
 
 function PlayWithConvex() {
+  const { t } = useI18n();
   const tracks = useConvexTrackList();
   const seedStarters = useMutation(api.seed.seedStarterTracks as any);
   const [seedRequested, setSeedRequested] = useState(false);
@@ -408,7 +427,7 @@ function PlayWithConvex() {
   if (!tracks) {
     return (
       <div className="rounded-3xl bg-white/80 p-6 text-center text-xl font-black text-slate-700 shadow-xl">
-        Loading tracks...
+        {t("play.loadingTracks")}
       </div>
     );
   }

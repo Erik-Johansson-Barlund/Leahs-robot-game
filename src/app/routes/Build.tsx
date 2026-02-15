@@ -4,17 +4,19 @@ import { ValidationPanel } from "@/components/builder/ValidationPanel";
 import { BOARD_HEIGHT, BOARD_WIDTH, Rotation, TileMap, TileType } from "@/engine/types";
 import { validateTrack } from "@/engine/validateTrack";
 import { useConvexCreateTrack } from "@/convex/tracks";
+import { useI18n } from "@/i18n/I18nContext";
 
 interface BuildCoreProps {
   saveTrack?: (input: { name: string; width: number; height: number; tiles: TileMap }) => Promise<unknown>;
 }
 
 function nextRotation(rot: Rotation): Rotation {
-  return (((rot + 90) % 360) as Rotation);
+  return ((rot + 90) % 360) as Rotation;
 }
 
 function BuildCore({ saveTrack }: BuildCoreProps) {
-  const [name, setName] = useState("My Awesome Track");
+  const { t } = useI18n();
+  const [name, setName] = useState(t("build.defaultName"));
   const [tiles, setTiles] = useState<TileMap>({});
   const [status, setStatus] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
@@ -80,14 +82,14 @@ function BuildCore({ saveTrack }: BuildCoreProps) {
     setStatus("");
     try {
       await saveTrack({
-        name: name.trim() || "Untitled Track",
+        name: name.trim() || t("build.untitled"),
         width: BOARD_WIDTH,
         height: BOARD_HEIGHT,
         tiles
       });
-      setStatus("Track saved to Convex!");
+      setStatus(t("build.saved"));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Could not save track.");
+      setStatus(error instanceof Error ? error.message : t("build.saveFailed"));
     } finally {
       setIsSaving(false);
     }
@@ -96,10 +98,8 @@ function BuildCore({ saveTrack }: BuildCoreProps) {
   return (
     <div className="space-y-4">
       <section className="rounded-3xl bg-amber-100/80 p-5 shadow-xl">
-        <h1 className="font-display text-4xl font-black text-amber-900">Track Builder</h1>
-        <p className="mt-1 text-lg font-bold text-amber-800">
-          Drag tiles, rotate by tapping, and make sure every robot can reach the goal.
-        </p>
+        <h1 className="font-display text-4xl font-black text-amber-900">{t("build.title")}</h1>
+        <p className="mt-1 text-lg font-bold text-amber-800">{t("build.subtitle")}</p>
 
         <div className="mt-4 flex flex-wrap gap-3">
           <input
@@ -113,7 +113,7 @@ function BuildCore({ saveTrack }: BuildCoreProps) {
             onClick={() => setTiles({})}
             className="rounded-2xl bg-white px-4 py-2 text-lg font-black text-amber-900 shadow"
           >
-            Clear Grid
+            {t("build.clearGrid")}
           </button>
           <button
             type="button"
@@ -121,7 +121,7 @@ function BuildCore({ saveTrack }: BuildCoreProps) {
             disabled={!saveTrack || !validation.isValid || isSaving}
             className="rounded-2xl bg-amber-500 px-4 py-2 text-lg font-black text-white shadow transition enabled:hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-slate-300"
           >
-            {saveTrack ? (isSaving ? "Saving..." : "Save Track") : "Convex Not Connected"}
+            {saveTrack ? (isSaving ? t("build.saving") : t("build.save")) : t("build.noConvex")}
           </button>
         </div>
 
@@ -130,18 +130,21 @@ function BuildCore({ saveTrack }: BuildCoreProps) {
         ) : null}
       </section>
 
-      <BuilderCanvas
-        width={BOARD_WIDTH}
-        height={BOARD_HEIGHT}
-        tiles={tiles}
-        highlights={highlightedCells}
-        onPlace={placeTile}
-        onMove={moveTile}
-        onRemove={removeTile}
-        onRotate={rotateTile}
-      />
-
-      <ValidationPanel result={validation} />
+      <div className="grid items-start gap-4 xl:grid-cols-[1fr_280px]">
+        <BuilderCanvas
+          width={BOARD_WIDTH}
+          height={BOARD_HEIGHT}
+          tiles={tiles}
+          highlights={highlightedCells}
+          onPlace={placeTile}
+          onMove={moveTile}
+          onRemove={removeTile}
+          onRotate={rotateTile}
+        />
+        <div className="xl:sticky xl:top-4">
+          <ValidationPanel result={validation} />
+        </div>
+      </div>
     </div>
   );
 }
@@ -149,11 +152,7 @@ function BuildCore({ saveTrack }: BuildCoreProps) {
 function BuildWithConvex() {
   const createTrack = useConvexCreateTrack();
 
-  return (
-    <BuildCore
-      saveTrack={(input) => (createTrack as any)(input)}
-    />
-  );
+  return <BuildCore saveTrack={(input) => (createTrack as any)(input)} />;
 }
 
 function BuildWithoutConvex() {

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Board } from "@/components/board/Board";
+import { coordToKey } from "@/engine/tileConnectivity";
 import { getFrameDurationMs } from "@/engine/simulate";
 import { Player, PlayerRun, SimulationResult, Track } from "@/engine/types";
-import { coordToKey } from "@/engine/tileConnectivity";
+import { useI18n } from "@/i18n/I18nContext";
 
 interface PlaybackViewProps {
   track: Track;
@@ -20,22 +21,25 @@ function didReachGoal(run: PlayerRun, track: Track): boolean {
   });
 }
 
-function getOutcomeMessage(playerName: string, run: PlayerRun, track: Track) {
+function getOutcomeMessage(
+  playerName: string,
+  run: PlayerRun,
+  track: Track,
+  t: ReturnType<typeof useI18n>["t"]
+) {
   if (didReachGoal(run, track)) {
-    return `${playerName} Reached the goal`;
+    return t("playback.reachedGoal", { name: playerName });
   }
 
   if (run.endedBecause === "blocked") {
-    return `${playerName} hit a wall`;
+    return t("playback.hitWall", { name: playerName });
   }
 
-  if (run.endedBecause === "commandsExhausted") {
-    return `${playerName} ran out of gas`;
-  }
-  return `${playerName} ran out of gas`;
+  return t("playback.outOfGas", { name: playerName });
 }
 
 export function PlaybackView({ track, players, result, onFinished }: PlaybackViewProps) {
+  const { t } = useI18n();
   const [runIndex, setRunIndex] = useState(0);
   const [frameIndex, setFrameIndex] = useState(0);
   const [phase, setPhase] = useState<"running" | "announcement">("running");
@@ -73,7 +77,7 @@ export function PlaybackView({ track, players, result, onFinished }: PlaybackVie
 
       const player = playerById[currentRun.playerId];
       setAnnouncement({
-        message: getOutcomeMessage(player?.name ?? "Player", currentRun, track),
+        message: getOutcomeMessage(player?.name ?? t("playback.playerFallback"), currentRun, track, t),
         color: player?.color ?? "#0f172a"
       });
       setPhase("announcement");
@@ -96,17 +100,21 @@ export function PlaybackView({ track, players, result, onFinished }: PlaybackVie
       }, betweenPlayersMs);
       return () => window.clearTimeout(timer);
     }
-  }, [currentRun, frameIndex, onFinished, phase, playerById, result.runs.length, runIndex, stepMs, track]);
+  }, [currentRun, frameIndex, onFinished, phase, playerById, result.runs.length, runIndex, stepMs, track, t]);
 
   const activePlayer = currentRun ? playerById[currentRun.playerId] : null;
 
   return (
     <div className="space-y-4">
       <div className="rounded-3xl bg-cyan-100/80 p-5 shadow-xl">
-        <h2 className="font-display text-4xl font-black text-cyan-900">Playback</h2>
+        <h2 className="font-display text-4xl font-black text-cyan-900">{t("playback.title")}</h2>
         {activePlayer ? (
           <p className="mt-1 text-xl font-black text-cyan-800">
-            Running: {activePlayer.name} ({runIndex + 1}/{result.runs.length})
+            {t("playback.running", {
+              name: activePlayer.name,
+              index: runIndex + 1,
+              total: result.runs.length
+            })}
           </p>
         ) : null}
       </div>
@@ -116,14 +124,19 @@ export function PlaybackView({ track, players, result, onFinished }: PlaybackVie
           width={track.width}
           height={track.height}
           tiles={track.tiles}
+          showRobotDirection={false}
+          animateRobots
+          robotTransitionMs={Math.max(stepMs - 40, 300)}
           robots={
             currentFrame && activePlayer
               ? [
                   {
+                    id: activePlayer.id,
                     x: currentFrame.x,
                     y: currentFrame.y,
                     dir: currentFrame.dir,
                     color: activePlayer.color,
+                    robotImage: activePlayer.robotImage,
                     name: activePlayer.name
                   }
                 ]
@@ -131,9 +144,9 @@ export function PlaybackView({ track, players, result, onFinished }: PlaybackVie
           }
         />
         {announcement ? (
-          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-4">
+          <div className="pointer-events-none absolute inset-0 z-[120] flex items-center justify-center p-4">
             <div
-              className="announcement-grow rounded-3xl border-4 bg-white/95 px-8 py-5 text-center text-4xl font-black shadow-2xl"
+              className="announcement-grow relative z-[130] rounded-3xl border-4 bg-white/95 px-8 py-5 text-center text-4xl font-black shadow-2xl"
               style={{ borderColor: announcement.color, color: announcement.color }}
             >
               {announcement.message}

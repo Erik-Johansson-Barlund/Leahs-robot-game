@@ -5,6 +5,7 @@ interface TileProps {
   tile: TileModel;
   highlighted?: boolean;
   onClick?: () => void;
+  edgeToEdge?: boolean;
 }
 
 const tileColors: Record<TileModel["type"], string> = {
@@ -23,7 +24,7 @@ const connectorStyle: Record<string, string> = {
   W: "left-0 top-1/2 h-2 w-1/2 -translate-y-1/2"
 };
 
-export function Tile({ tile, highlighted = false, onClick }: TileProps) {
+export function Tile({ tile, highlighted = false, onClick, edgeToEdge = false }: TileProps) {
   const connectors = getConnectors(tile);
 
   return (
@@ -31,7 +32,11 @@ export function Tile({ tile, highlighted = false, onClick }: TileProps) {
       type="button"
       onClick={onClick}
       disabled={!onClick}
-      className={`relative h-full w-full rounded-2xl border-2 border-white/80 p-0 shadow-md transition hover:scale-[1.03] disabled:cursor-default ${tileColors[tile.type]} ${highlighted ? "ring-4 ring-amber-400" : ""}`}
+      className={`relative h-full w-full p-0 transition disabled:cursor-default ${tileColors[tile.type]} ${
+        edgeToEdge
+          ? "rounded-[0.9rem] border-0 shadow-none"
+          : "rounded-2xl border-2 border-white/80 shadow-md hover:scale-[1.03]"
+      } ${highlighted ? "ring-4 ring-amber-400" : ""}`}
     >
       {connectors.map((dir) => (
         <span
