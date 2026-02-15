@@ -1,4 +1,7 @@
 # Leahs Robot Rally
+<img width="700" alt="bg" src="https://github.com/user-attachments/assets/99d2cb84-18c5-4631-bbab-1ed18f5dcae4" />
+
+[Try it out here](https://leahsspel.netlify.app)
 
 A kid-friendly web game where players program robots on a track built with drag-and-drop. I built this game with my daughter after she told me they program robots at school using [unplugged programming principles](https://unpluggedcoding.com/?srsltid=AfmBOor-53tKlRoVprAH58qjtvCLyggFw9OcgG3JX2uP588AG7tbajTc).
 
